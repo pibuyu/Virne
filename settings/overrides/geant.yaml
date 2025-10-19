@@ -1,0 +1,14 @@
+p_net_setting:
+  topology:
+    type: gml
+    file_path: /home/JWS/HHF/virne-main/datasets/topology/Geant.gml
+
+rl:
+  feature_constructor:
+    p_num_nodes: ${simulation.p_net_num_nodes}
+
+experiment:
+  if_load_p_net: true
+
+
+# Geant拓扑只有40个nodes，但是RL的静态超参数设置的是100个节点，会出现节点数不一致的问题。这里通过yaml将节点数设置为40
