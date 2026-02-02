@@ -118,7 +118,7 @@ fi
 # always exit here
 
 print_step "Installing PyTorch..."
-pip install tensorboard higher
+pip install tensorboard higher torchopt
 if [[ "${cuda}" == "cpu" ]]; then
     echo "Installing PyTorch (CPU version)..."
     pip install torch==2.6.0  --index-url https://download.pytorch.org/whl/cpu --force-reinstall

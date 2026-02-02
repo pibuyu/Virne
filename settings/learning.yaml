@@ -77,3 +77,12 @@ rl:
     srl_cost_budget: 0.2
     srl_alpha: 1.0
     srl_beta: 0.1
+  # FlagVNE
+  flag_vne:
+    use_bidirectional_action: true
+    use_meta_learning: true
+    num_meta_learning_epochs: 50
+    use_curriculum_scheduling_strategy: false
+    policy_entropy_threshold: 2.0
+    infer_with_meta_policy: false
+    infer_with_single_task_policy_id: 0
