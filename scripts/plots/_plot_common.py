@@ -26,6 +26,19 @@ def add_common_args(parser, *, kind):
     return parser
 
 
+def add_plot_style_args(parser):
+    parser.add_argument("--logy", action="store_true", help="Use log scale on Y axis")
+    parser.add_argument("--ymin", type=float, default=None, help="Y-axis minimum")
+    parser.add_argument("--ymax", type=float, default=None, help="Y-axis maximum")
+    parser.add_argument(
+        "--clip-quantile",
+        type=float,
+        default=None,
+        help="Clip Y values to this upper quantile (e.g. 0.99)",
+    )
+    return parser
+
+
 def resolve_csv_path(csv_path, run_dir, kind):
     if csv_path:
         path = csv_path
@@ -92,11 +105,31 @@ def filter_enter_events(df):
     return df
 
 
-def plot_line(df, x_col, y_col, out_path, title, xlabel, ylabel):
+def plot_line(
+    df,
+    x_col,
+    y_col,
+    out_path,
+    title,
+    xlabel,
+    ylabel,
+    yscale=None,
+    ymin=None,
+    ymax=None,
+    clip_quantile=None,
+):
     clean = df[[x_col, y_col]].copy()
     clean[x_col] = to_numeric(clean[x_col])
     clean[y_col] = to_numeric(clean[y_col])
     clean = clean.dropna()
+    clean = clean.sort_values(by=x_col)
+    if clip_quantile is not None:
+        if not (0 < clip_quantile <= 1):
+            raise SystemExit("--clip-quantile must be in (0, 1].")
+        upper = clean[y_col].quantile(clip_quantile)
+        clean[y_col] = clean[y_col].clip(upper=upper)
+    if yscale == "log":
+        clean = clean[clean[y_col] > 0]
     if clean.empty:
         raise SystemExit("No valid data to plot after cleaning.")
 
@@ -106,6 +139,10 @@ def plot_line(df, x_col, y_col, out_path, title, xlabel, ylabel):
     ax.set_ylabel(ylabel)
     if title:
         ax.set_title(title)
+    if yscale:
+        ax.set_yscale(yscale)
+    if ymin is not None or ymax is not None:
+        ax.set_ylim(ymin, ymax)
     ax.grid(True, linestyle="--", alpha=0.3)
     fig.tight_layout()
     fig.savefig(out_path)
