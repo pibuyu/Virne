@@ -215,6 +215,7 @@ class FlagVneSolver(InstanceAgent, PPOSolver):
         self.gae_lambda = self.config.rl.gae_lambda
         self.gamma = self.config.rl.gamma
         self.repeat_times = self.config.rl.repeat_times
+        self.meta_update_time = 0
 
         if self.use_meta_learning:
             self.meta_policy = copy.deepcopy(self.policy).to(self.device)
@@ -511,10 +512,15 @@ class FlagVneSolver(InstanceAgent, PPOSolver):
                     kls.append(kl_div.detach())
                 if self.verbose >= 0:
                     self.logger.info(
-                        f'{task_id}-{step}, actor_loss: {actor_loss.detach():.4f}, critic_loss: {critic_loss.detach():.4f}, '
-                        f'values: {values.detach().mean():.4f}, entropy_loss: {entropy_loss.mean():.4f}, '
-                        f'advantages: {advantages.mean():.4f}'
+                        f'Update time: {self.meta_update_time:06d} | '
+                        f'task={task_id} step={step} '
+                        f'actor_loss {actor_loss.detach():+.4f} '
+                        f'critic_loss {critic_loss.detach():+.4f} '
+                        f'value {values.detach().mean():+.4f} '
+                        f'entropy {entropy_loss.mean():+.4f} '
+                        f'advantage {advantages.mean():+.4f}'
                     )
+                    self.meta_update_time += 1
                 task_specific_buffer = self.collect_new_task_buffer(
                     self.meta_policy, self.instance_dict[task_id], max_num_experiences=64
                 )
@@ -525,10 +531,15 @@ class FlagVneSolver(InstanceAgent, PPOSolver):
                 meta_loss = ppo_loss + kl_loss
                 if self.verbose >= 0:
                     self.logger.info(
-                        f'Task {task_id}, meta_loss: {loss:.4f}, kl: {kl_div:.4f}, '
-                        f'actor_loss: {actor_loss:.4f}, critic_loss: {critic_loss:.4f}, '
-                        f'entropy_loss: {entropy_loss:.4f}'
+                        f'Update time: {self.meta_update_time:06d} | '
+                        f'task={task_id} '
+                        f'meta_loss {loss:+.4f} '
+                        f'kl {kl_div:+.4f} '
+                        f'actor_loss {actor_loss:+.4f} '
+                        f'critic_loss {critic_loss:+.4f} '
+                        f'entropy {entropy_loss:+.4f}'
                     )
+                    self.meta_update_time += 1
                 meta_loss.backward()
                 torchopt.recover_state_dict(self.meta_policy, policy_state_dict)
                 torchopt.recover_state_dict(inner_opt, optim_state_dict)
@@ -563,10 +574,15 @@ class FlagVneSolver(InstanceAgent, PPOSolver):
 
             if self.verbose >= 0:
                 self.logger.info(
-                    f'Total_meta_loss: {total_meta_loss:.4f}, ppo loss: {total_ppo_loss:.4f}, '
-                    f'actor loss: {aver_actor_loss:.4f}, critic loss: {aver_critic_loss:.4f}, '
-                    f'entropy loss: {aver_entropy_loss:.4f}, kl loss: {total_kl_loss:.4f}'
+                    f'Update time: {self.meta_update_time:06d} | '
+                    f'meta_loss {total_meta_loss:+.4f} '
+                    f'ppo_loss {total_ppo_loss:+.4f} '
+                    f'actor_loss {aver_actor_loss:+.4f} '
+                    f'critic_loss {aver_critic_loss:+.4f} '
+                    f'entropy {aver_entropy_loss:+.4f} '
+                    f'kl_loss {total_kl_loss:+.4f}'
                 )
+                self.meta_update_time += 1
 
         for task_id in task_buffers.keys():
             self.task_policies[task_id].load_state_dict(self.meta_policy.state_dict())
@@ -753,4 +769,3 @@ def obs_as_tensor(obs, device):
             'v_net_size': obs_v_net_size,
         }
     raise ValueError(f'Unrecognized type of observation {type(obs)}')
-
